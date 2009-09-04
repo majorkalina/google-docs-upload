@@ -34,6 +34,9 @@ import com.google.gdata.util.ServiceException;
  * Usage: java -jar google-docs-upload.jar <path> --username <user> --password <pass>
  * Usage: java -jar google-docs-upload.jar <path> --authSub <token>
  *     [--recursive]                 Recursively traverse directories.
+ *     [--username <username>]       Username for a Google account.
+ *     [--password <password>]       Password for a Google account.
+ *     [--authSub <token>]           AuthSub token.
  *     [--auth_protocol <protocol>]  The protocol to use with authentication.
  *     [--auth_host <host:port>]     The host of the auth server to use.
  *     [--protocol <protocol>]       The protocol to use with the HTTP requests.
@@ -63,9 +66,12 @@ public class GoogleDocsUpload {
 	private static final String[] USAGE_MESSAGE = { "",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
-		"Usage: java -jar google-docs-upload.jar <path> --username <user> --password <pass>",
+		"Usage: java -jar google-docs-upload.jar <path> --username <username> --password <pass>",
 		"Usage: java -jar google-docs-upload.jar <path> --authSub <token>",
 		"    [--recursive]                 Recursively traverse directories.",
+		"    [--username <username>]       Username for a Google account.",
+		"    [--password <password>]       Password for a Google account.",
+		"    [--authSub <token>]           AuthSub token.",
 		"    [--auth_protocol <protocol>]  The protocol to use with authentication.",
 		"    [--auth_host <host:port>]     The host of the auth server to use.",
 		"    [--protocol <protocol>]       The protocol to use with the HTTP requests.",
