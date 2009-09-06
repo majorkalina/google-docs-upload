@@ -265,6 +265,14 @@ public class DocumentList {
 		return service.insert(buildUrl(URL_DEFAULT + URL_DOCLIST_FEED),
 				newEntry);
 	}
+	
+	public DocumentListEntry createNewSubFolder(String title, String folderResourceId) throws IOException, ServiceException, DocumentListException {
+		DocumentListEntry newEntry = new FolderEntry();
+		newEntry.setTitle(new PlainTextConstruct(title));
+		URL url = buildUrl(URL_DEFAULT + URL_DOCLIST_FEED + "/" + folderResourceId + URL_FOLDERS);
+		return service.insert(url, newEntry);
+	}
+
 
 	/**
 	 * Gets a feed containing the documents.
@@ -365,6 +373,31 @@ public class DocumentList {
 		}
 		URL url = buildUrl(URL_DEFAULT + URL_DOCLIST_FEED + "/"
 				+ folderResourceId + URL_FOLDERS);
+		return service.getFeed(url, DocumentListFeed.class);
+	}
+	
+
+	/**
+	 * Gets the feed for all the folders contained in a folder.
+	 * 
+	 * @param folderResourceId
+	 *            the resource id of the folder to return the feed for the
+	 *            contents.
+	 * 
+	 * @throws IOException
+	 * @throws MalformedURLException
+	 * @throws ServiceException
+	 * @throws DocumentListException
+	 */
+	public DocumentListFeed getSubFolders(String folderResourceId)
+			throws IOException, MalformedURLException, ServiceException,
+			DocumentListException {
+		if (folderResourceId == null) {
+			throw new DocumentListException("null folderResourceId");
+		}
+		String[] parameters = { PARAMETER_SHOW_FOLDERS };
+		URL url = buildUrl(URL_DEFAULT + URL_DOCLIST_FEED + "/"
+				+ folderResourceId + URL_FOLDERS + URL_CATEGORY_FOLDER, parameters);
 		return service.getFeed(url, DocumentListFeed.class);
 	}
 
@@ -526,6 +559,41 @@ public class DocumentList {
 
 		return service.insert(buildUrl(URL_DEFAULT + URL_DOCLIST_FEED),
 				newDocument);
+	}
+	
+
+	/**
+	 * Upload a file to a folder.
+	 * 
+	 * @param filepath
+	 *            path to uploaded file.
+	 * @param title
+	 *            title to use for uploaded file.
+	 * 
+	 * @throws ServiceException
+	 *             when the request causes an error in the Doclist service.
+	 * @throws IOException
+	 *             when an error occurs in communication with the Doclist
+	 *             service.
+	 * @throws DocumentListException
+	 */
+	public DocumentListEntry uploadFileToFolder(String filepath, String title, String folderResourceId)
+			throws IOException, ServiceException, DocumentListException {
+		if (filepath == null || title == null) {
+			throw new DocumentListException(
+					"null passed in for required parameters");
+		}
+
+		File file = new File(filepath);
+		String mimeType = DocumentListEntry.MediaType.fromFileName(
+				file.getName()).getMimeType();
+
+		DocumentEntry newDocument = new DocumentEntry();
+		newDocument.setFile(file, mimeType);
+		newDocument.setTitle(new PlainTextConstruct(title));
+		
+		URL url = buildUrl(URL_DEFAULT + URL_DOCLIST_FEED + "/" + folderResourceId + URL_FOLDERS);
+		return service.insert(url, newDocument);
 	}
 
 	/**
