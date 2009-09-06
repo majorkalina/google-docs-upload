@@ -15,23 +15,27 @@
 
 import java.io.File;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
 import com.google.gdata.util.AuthenticationException;
+import com.google.gdata.util.InvalidEntryException;
 import com.google.gdata.util.ServiceException;
 
 /**
  * Google Docs Upload
  * 
  * A tool for batch upload of documents to a Google Docs account with recursive traversing of directories.
- * Supported file formats are: csv, doc, html, ods, odt, pdf, png, ppt, rtf, swf, tsv, txt, xls, zip.
+ * Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.
  * 
  * Usage: java -jar google-docs-upload.jar
  * Usage: java -jar google-docs-upload.jar <path> --recursive
- * Usage: java -jar google-docs-upload.jar <path> --username <user> --password <pass>
+ * Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>
  * Usage: java -jar google-docs-upload.jar <path> --authSub <token>
  *     [--recursive]                 Recursively traverse directories.
  *     [--username <username>]       Username for a Google account.
@@ -44,7 +48,7 @@ import com.google.gdata.util.ServiceException;
  *     
  * @author Anton Beloglazov
  * @since 09/2009
- * @version 1.0
+ * @version 1.1
  * 
  */
 public class GoogleDocsUpload {
@@ -52,13 +56,16 @@ public class GoogleDocsUpload {
 	/** The document list. */
 	private DocumentList documentList;
 	
-	/** Supported file formats **/
-	public static String[] SUPPORTED_FORMATS = { "csv", "doc", "html", "ods", "odt", "pdf", "png", "ppt", "rtf", "swf", "tsv", "txt", "xls", "zip" };
+	/** The output stream **/
+	private static PrintWriter out;
+	
+	/** Supported file formats http://code.google.com/intl/ru/apis/documents/faq.html#WhatKindOfFilesCanIUpload **/
+	public static String[] SUPPORTED_FORMATS = { "csv", "doc", "docx", "html", "htm", "ods", "odt", "pdf", "ppt", "pps", "rtf", "sxw", "tsv", "tab", "txt", "xls", "xlsx" };
 	
 	/** Welcome message, introducing the program. */
 	private static final String[] WELCOME_MESSAGE = { "",
 		"Using this tool, you can batch upload your documents to a Google Docs account with recursive traversing of directories.",
-		"Supported file formats are: csv, doc, html, ods, odt, pdf, png, ppt, rtf, swf, tsv, txt, xls, zip.",
+		"Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
 	
@@ -66,7 +73,7 @@ public class GoogleDocsUpload {
 	private static final String[] USAGE_MESSAGE = { "",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
-		"Usage: java -jar google-docs-upload.jar <path> --username <username> --password <pass>",
+		"Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>",
 		"Usage: java -jar google-docs-upload.jar <path> --authSub <token>",
 		"    [--recursive]                 Recursively traverse directories.",
 		"    [--username <username>]       Username for a Google account.",
@@ -117,16 +124,16 @@ public class GoogleDocsUpload {
 		
 		if (help) {
 			printMessages(USAGE_MESSAGE);
-			System.out.print("Supported file formats are: ");
+			print("Supported file formats are: ");
 			boolean notFirst = false;
 			for (String format : SUPPORTED_FORMATS) {
 				if (notFirst) {
-					System.out.print(", ");	
+					print(", ");	
 				}
-				System.out.print(format);				
+				print(format);				
 				notFirst = true;
 			}
-			printMessage("");
+			printLine("");
 			System.exit(1);
 		}
 		
@@ -158,12 +165,12 @@ public class GoogleDocsUpload {
 			scanner = new Scanner(System.in);
 			
 			if (username == null && authSub == null) {
-				System.out.print("Username: ");
+				print("Username: ");
 				username = scanner.nextLine();						
 			}
 			
 			if (password == null && authSub == null) {
-				System.out.print("Password: ");
+				print("Password: ");
 				password = String.copyValueOf(System.console().readPassword());
 			}
 		}
@@ -174,14 +181,14 @@ public class GoogleDocsUpload {
 			try {
 				app.login(username, password);
 			} catch (AuthenticationException e) {
-				printMessage("Authentification error");
+				printLine("Authentification error");
 				System.exit(1);
 			}
 		} else {
 			try {
 				app.login(authSub);
 			} catch (AuthenticationException e) {
-				printMessage("Authentification error");
+				printLine("Authentification error");
 				System.exit(1);
 			}
 		}
@@ -191,7 +198,7 @@ public class GoogleDocsUpload {
 				scanner = new Scanner(System.in);
 			}
 			
-			System.out.print("Path: ");
+			print("Path: ");
 			path = scanner.nextLine();						
 		}
 
@@ -232,14 +239,14 @@ public class GoogleDocsUpload {
 	 * @throws ServiceException the service exception
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
-	public void upload(String path, boolean recursive) throws IOException, ServiceException {
+	public void upload(String path, boolean recursive) {
 		File folder = new File(path);
 		if (!folder.exists()) {
-			printMessage("Specified folder " + path + " doesn't exist");
+			printLine("Specified folder " + path + " doesn't exist");
 			System.exit(1);			
 		}
 		
-		printMessage("\nUploading" + (recursive ? " recursively" : "") + " the folder " + path + "\n");
+		printLine("\nUploading" + (recursive ? " recursively" : "") + " the folder " + path + "\n");
 		
 		List<File> list = new ArrayList<File>();
 		getFiles(folder, list, recursive);
@@ -249,10 +256,10 @@ public class GoogleDocsUpload {
 		ArrayList<String> formats = new ArrayList<String>(Arrays.asList(SUPPORTED_FORMATS));
 		
 		for (File file : list) {
-			printMessage(file.getAbsolutePath());
+			printLine(file.getAbsolutePath());
 			
-			if (!formats.contains(file.getName().substring(file.getName().lastIndexOf(".") + 1))) {
-				printMessage(" - Skipped: the file format is not supported");
+			if (!formats.contains(file.getName().substring(file.getName().lastIndexOf(".") + 1).toLowerCase())) {
+				printLine(" - Skipped: the file format is not supported");
 				continue;
 			}
 				
@@ -261,16 +268,21 @@ public class GoogleDocsUpload {
 					getDocumentList().uploadFile(file.getAbsolutePath(), file.getName().substring(0, file.getName().lastIndexOf(".")));
 					uploaded++;
 					break;
-				} catch (DocumentListException e) {
-					printMessage(" - Upload error: " + e.getMessage());
+				} catch (InvalidEntryException e) {
+					printLine(" - Skipped: " + e.getMessage());
+					break;					
+				} catch (Exception e) {
+					printLine(" - Upload error: " + e.getMessage());
 					if (i < 2) {
-						printMessage(" - Another try...");
+						printLine(" - Another try...");
+					} else {
+						printLine(" - Skipped");
 					}
 				}
 			}
 		}
 		
-		printMessage("\nTotal uploaded: " + uploaded);
+		printLine("\nTotal uploaded: " + uploaded);
 	}
 
 	/**
@@ -299,10 +311,20 @@ public class GoogleDocsUpload {
 	 * 
 	 * @param msg the message to be printed.
 	 */
-	protected static void printMessage(String msg) {
-		System.out.println(msg);
+	protected static void print(String msg) {
+		getOut().print(msg);
+		getOut().flush();
 	}
 	
+	/**
+	 * Prints out a message.
+	 * 
+	 * @param msg the message to be printed.
+	 */
+	protected static void printLine(String msg) {
+		print(msg + "\n");
+	}
+
 	/**
 	 * Prints out a list of messages.
 	 * 
@@ -310,7 +332,7 @@ public class GoogleDocsUpload {
 	 */
 	protected static void printMessages(String[] msg) {
 		for (String s : msg) {
-			printMessage(s);
+			printLine(s);
 		}
 	}
 
@@ -332,4 +354,16 @@ public class GoogleDocsUpload {
 		this.documentList = documentList;
 	}
 
+	
+	protected static PrintWriter getOut() {
+		if (out == null) {
+			try {
+				out = new PrintWriter(new OutputStreamWriter(System.out, "Cp866"), true);
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+		}
+		return out;
+	}
+	
 }
