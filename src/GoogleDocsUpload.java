@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
+import com.google.gdata.data.docs.DocumentListEntry;
+import com.google.gdata.data.docs.DocumentListFeed;
 import com.google.gdata.util.AuthenticationException;
 import com.google.gdata.util.InvalidEntryException;
 import com.google.gdata.util.ServiceException;
@@ -30,15 +32,15 @@ import com.google.gdata.util.ServiceException;
 /**
  * Google Docs Upload
  * 
- * A tool for batch upload of documents to a Google Docs account with recursive traversing of directories.
+ * A tool for batch upload of documents to a Google Docs account preserving folder structure.
  * Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.
  * 
  * Usage: java -jar google-docs-upload.jar
  * Usage: java -jar google-docs-upload.jar <path> --recursive
  * Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>
  * Usage: java -jar google-docs-upload.jar <path> --authSub <token>
- *     [--recursive]                 Recursively traverse directories.
- *     [--username <username>]       Username for a Google account.
+ *     [--recursive]                 Recursively upload all subfolders.",
+ *     [--without-folders]           Do not recreate folder structure in Google Docs.",	
  *     [--password <password>]       Password for a Google account.
  *     [--authSub <token>]           AuthSub token.
  *     [--auth_protocol <protocol>]  The protocol to use with authentication.
@@ -48,7 +50,7 @@ import com.google.gdata.util.ServiceException;
  *     
  * @author Anton Beloglazov
  * @since 09/2009
- * @version 1.1
+ * @version 1.2
  * 
  */
 public class GoogleDocsUpload {
@@ -64,7 +66,7 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	private static final String[] WELCOME_MESSAGE = { "",
-		"Using this tool, you can batch upload your documents to a Google Docs account with recursive traversing of directories.",
+		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
 		"Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
@@ -75,7 +77,8 @@ public class GoogleDocsUpload {
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
 		"Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>",
 		"Usage: java -jar google-docs-upload.jar <path> --authSub <token>",
-		"    [--recursive]                 Recursively traverse directories.",
+		"    [--recursive]                 Recursively upload all subfolders.",
+		"    [--without-folders]           Do not recreate folder structure in Google Docs.",		
 		"    [--username <username>]       Username for a Google account.",
 		"    [--password <password>]       Password for a Google account.",
 		"    [--authSub <token>]           AuthSub token.",
@@ -120,6 +123,7 @@ public class GoogleDocsUpload {
 		String host = parser.getValue("host", "s");
 		boolean help = parser.containsKey("help", "h");
 		boolean recursive = parser.containsKey("recursive", "r");
+		boolean withoutFolders = parser.containsKey("without-folders", "wf");
 		String path = null;
 		
 		if (help) {
@@ -202,7 +206,7 @@ public class GoogleDocsUpload {
 			path = scanner.nextLine();						
 		}
 
-		app.upload(path, recursive);
+		app.upload(path, recursive, withoutFolders);
 	}
 
 	/**
@@ -229,7 +233,37 @@ public class GoogleDocsUpload {
 	public void login(String authSubToken) throws AuthenticationException, DocumentListException {
 		getDocumentList().loginWithAuthSubToken(authSubToken);
 	}	
-		
+	
+	public DocumentListFeed getRootFolders() {		
+		DocumentListFeed results = new DocumentListFeed();
+		try {
+			DocumentListFeed docs = getDocumentList().getDocsListFeed("folders");
+			List<DocumentListEntry> list = new ArrayList<DocumentListEntry>();
+			for (DocumentListEntry doc : docs.getEntries()) {
+				if (doc.getParentLinks().isEmpty()) {
+					list.add(doc);
+				}			
+			}
+			results.setEntries(list);			
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return results;
+	}
+	
+	public DocumentListFeed getSubFolders(DocumentListEntry folder) {
+		DocumentListFeed result = null;
+		if (folder == null) {
+			return getRootFolders();
+		}
+		try {
+			result = getDocumentList().getSubFolders(folder.getResourceId());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}		
+		return result;
+	}
+	
 	/**
 	 * Uploads specified folder.
 	 * 
@@ -239,7 +273,7 @@ public class GoogleDocsUpload {
 	 * @throws ServiceException the service exception
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
-	public void upload(String path, boolean recursive) {
+	public void upload(String path, boolean recursive, boolean withoutFolders) {		
 		File folder = new File(path);
 		if (!folder.exists()) {
 			printLine("Specified folder " + path + " doesn't exist");
@@ -248,62 +282,83 @@ public class GoogleDocsUpload {
 		
 		printLine("\nUploading" + (recursive ? " recursively" : "") + " the folder " + path + "\n");
 		
-		List<File> list = new ArrayList<File>();
-		getFiles(folder, list, recursive);
+		int uploaded = _upload(folder, null, recursive, withoutFolders);
 		
-		int uploaded = 0;
-		
+		printLine("\nFiles uploaded: " + uploaded);		
+	}
+	
+	private int _upload(File folder, DocumentListEntry remoteFolder, boolean recursive, boolean withoutFolders) {
+		folder.setReadOnly();
+		DocumentListFeed remoteSubFolders = getSubFolders(remoteFolder);
 		ArrayList<String> formats = new ArrayList<String>(Arrays.asList(SUPPORTED_FORMATS));
-		
-		for (File file : list) {
-			printLine(file.getAbsolutePath());
-			
-			if (!formats.contains(file.getName().substring(file.getName().lastIndexOf(".") + 1).toLowerCase())) {
-				printLine(" - Skipped: the file format is not supported");
-				continue;
-			}
-				
-			for (int i = 0; i < 3; i++) {				
-				try {
-					getDocumentList().uploadFile(file.getAbsolutePath(), file.getName().substring(0, file.getName().lastIndexOf(".")));
-					uploaded++;
-					break;
-				} catch (InvalidEntryException e) {
-					printLine(" - Skipped: " + e.getMessage());
-					break;					
-				} catch (Exception e) {
-					printLine(" - Upload error: " + e.getMessage());
-					if (i < 2) {
-						printLine(" - Another try...");
-					} else {
-						printLine(" - Skipped");
+		int uploaded = 0;
+		for (File file : folder.listFiles()) {
+			if (!file.isDirectory()) {			
+				printLine(file.getAbsolutePath());
+				if (!formats.contains(file.getName().substring(file.getName().lastIndexOf(".") + 1).toLowerCase())) {
+					printLine(" - Skipped: the file format is not supported");
+					continue;
+				}
+					
+				for (int i = 0; i < 3; i++) {				
+					try {
+						if (remoteFolder == null || withoutFolders) {
+							getDocumentList().uploadFile(file.getAbsolutePath(), file.getName().substring(0, file.getName().lastIndexOf(".")));
+						} else {
+							getDocumentList().uploadFileToFolder(file.getAbsolutePath(), file.getName().substring(0, file.getName().lastIndexOf(".")), remoteFolder.getResourceId());
+						}
+						uploaded++;
+						break;
+					} catch (InvalidEntryException e) {
+						printLine(" - Skipped: " + e.getMessage());
+						break;					
+					} catch (Exception e) {
+						printLine(" - Upload error: " + e.getMessage());
+						if (i < 2) {
+							printLine(" - Another try...");
+						} else {
+							printLine(" - Skipped");
+						}
 					}
 				}
 			}
 		}
+		for (File file : folder.listFiles()) {
+			if (recursive && file.isDirectory()) {
+				printLine(file.getAbsolutePath());
+				DocumentListEntry currentRemoteFolder = null;
+				if (!withoutFolders) {
+					currentRemoteFolder = folderListFind(file.getName(), remoteSubFolders);
+					if (currentRemoteFolder == null) {
+						try {
+							if (remoteFolder == null) {
+								currentRemoteFolder = getDocumentList().createNew(file.getName(), "folder");
+							} else {
+								currentRemoteFolder = getDocumentList().createNewSubFolder(file.getName(), remoteFolder.getResourceId());
+							}						
+						} catch (Exception e) {
+							printLine(" - Skipped: failed to create the folder, files will be uploaded to the upper-level folder");
+							e.printStackTrace();
+						}			
+						if (currentRemoteFolder == null) {
+							printLine(" - Skipped: failed to create the folder, files will be uploaded to the upper-level folder");
+						}
+					}
+				}
+				uploaded += _upload(file, currentRemoteFolder, recursive, withoutFolders);
+			} 
+		}
 		
-		printLine("\nTotal uploaded: " + uploaded);
+		return uploaded;	
 	}
 
-	/**
-	 * Gets the list of files.
-	 * 
-	 * @param folder the folder
-	 * @param list the file list to be populated
-	 * @param recursive the flag for recursive directory traversing
-	 * 
-	 * @return the list of files
-	 */
-	protected static void getFiles(File folder, List<File> list, boolean recursive) {
-		folder.setReadOnly();
-		File[] files = folder.listFiles();
-		for (File file : files) {
-			if (!file.isDirectory()) {
-				list.add(file);
-			} else if (recursive) {
-				getFiles(file, list, recursive);
-			}
+	private DocumentListEntry folderListFind(String name, DocumentListFeed remoteSubFolders) {
+		for (DocumentListEntry folder : remoteSubFolders.getEntries()) {
+			if (folder.getTitle().getPlainText().equals(name)) {
+				return folder;
+			}			
 		}
+		return null;
 	}
 	
 	/**
@@ -353,7 +408,6 @@ public class GoogleDocsUpload {
 	protected void setDocumentList(DocumentList documentList) {
 		this.documentList = documentList;
 	}
-
 	
 	protected static PrintWriter getOut() {
 		if (out == null) {
