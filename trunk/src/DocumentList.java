@@ -266,6 +266,18 @@ public class DocumentList {
 				newEntry);
 	}
 	
+	/**
+	 * Creates the new sub folder.
+	 * 
+	 * @param title the title
+	 * @param folderResourceId the folder resource id
+	 * 
+	 * @return the document list entry
+	 * 
+	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @throws ServiceException the service exception
+	 * @throws DocumentListException the document list exception
+	 */
 	public DocumentListEntry createNewSubFolder(String title, String folderResourceId) throws IOException, ServiceException, DocumentListException {
 		DocumentListEntry newEntry = new FolderEntry();
 		newEntry.setTitle(new PlainTextConstruct(title));
