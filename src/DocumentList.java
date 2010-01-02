@@ -13,10 +13,23 @@
  * limitations under the License.
  */
 
-import com.google.gdata.client.GoogleAuthTokenFactory.UserToken;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+
+import com.google.gdata.client.DocumentQuery;
 import com.google.gdata.client.GoogleService;
 import com.google.gdata.client.Query;
+import com.google.gdata.client.GoogleAuthTokenFactory.UserToken;
 import com.google.gdata.client.docs.DocsService;
+import com.google.gdata.data.Link;
 import com.google.gdata.data.MediaContent;
 import com.google.gdata.data.PlainTextConstruct;
 import com.google.gdata.data.acl.AclEntry;
@@ -33,17 +46,6 @@ import com.google.gdata.data.docs.SpreadsheetEntry;
 import com.google.gdata.data.media.MediaSource;
 import com.google.gdata.util.AuthenticationException;
 import com.google.gdata.util.ServiceException;
-
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * An application that serves as a sample to show how the GoogleDocsUpload List
@@ -340,7 +342,16 @@ public class DocumentList {
 			return null;
 		}
 
-		return service.getFeed(url, DocumentListFeed.class);
+		DocumentQuery query = new DocumentQuery(url);
+//		if (!category.equals("folders")) {
+//			query.setMaxResults(101);
+//		}
+
+		return service.getFeed(query, DocumentListFeed.class);
+	}
+	
+	public DocumentListFeed getDocsListFeed(Link link) throws MalformedURLException, IOException, ServiceException, DocumentListException {
+		return service.getFeed(new URL(link.getHref()), DocumentListFeed.class);
 	}
 
 	/**
@@ -1159,5 +1170,6 @@ public class DocumentList {
 
 		return new URL(url.toString());
 	}
+
 	
 }

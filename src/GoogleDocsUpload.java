@@ -29,7 +29,6 @@ import java.util.Scanner;
 import com.google.gdata.data.docs.DocumentListEntry;
 import com.google.gdata.data.docs.DocumentListFeed;
 import com.google.gdata.util.AuthenticationException;
-import com.google.gdata.util.InvalidEntryException;
 import com.google.gdata.util.ServiceException;
 
 /**
@@ -42,21 +41,21 @@ import com.google.gdata.util.ServiceException;
  * Usage: java -jar google-docs-upload.jar <path> --recursive
  * Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>
  * Usage: java -jar google-docs-upload.jar <path> --auth-sub <token>
- *     [--username <username>]       Username for a Google account.
- *     [--password <password>]       Password for a Google account.
- *     [--recursive]                 Recursively upload all subfolders.
- *     [--remote-folder]             The remote folder path to upload the documents separated by '/'.
- *     [--without-folders]           Do not recreate folder structure in Google Docs.
- *     [--add-all]                   Upload all documents even if there are already documents with the same names.		
- *     [--skip-all]                  Skip all documents if there there are already documents with the same names.	
- *     [--replace-all]               Replace all documents in Google Docs, which have the same names as the uploaded.	
- *     [--disable-retries]           Disable auto-retries in the cases of failed upload.	
- *     [--auth-sub <token>]          AuthSub token.
- *     [--auth-protocol <protocol>]  The protocol to use with authentication.
- *     [--auth-host <host:port>]     The host of the auth server to use.
- *     [--protocol <protocol>]       The protocol to use with the HTTP requests.
- *     [--host <host:port>]          Where is the feed (default = docs.google.com)
- *     
+ * [--username <username>]       Username for a Google account.
+ * [--password <password>]       Password for a Google account.
+ * [--recursive]                 Recursively upload all subfolders.
+ * [--remote-folder]             The remote folder path to upload the documents separated by '/'.
+ * [--without-folders]           Do not recreate folder structure in Google Docs.
+ * [--add-all]                   Upload all documents even if there are already documents with the same names.
+ * [--skip-all]                  Skip all documents if there there are already documents with the same names.
+ * [--replace-all]               Replace all documents in Google Docs, which have the same names as the uploaded.
+ * [--disable-retries]           Disable auto-retries in the cases of failed upload.
+ * [--auth-sub <token>]          AuthSub token.
+ * [--auth-protocol <protocol>]  The protocol to use with authentication.
+ * [--auth-host <host:port>]     The host of the auth server to use.
+ * [--protocol <protocol>]       The protocol to use with the HTTP requests.
+ * [--host <host:port>]          Where is the feed (default = docs.google.com)
+ * 
  * You can also use short versions of the options, such as -u (--username), -p (--password), -rf (--remote-folder), etc.
  * 
  * @author Anton Beloglazov
@@ -157,6 +156,24 @@ public class GoogleDocsUpload {
 		"You can also use short versions of the options, such as -u (--username), -p (--password), -rf (--remote-folder), etc."
 	};
 
+	/** The option recursive. */
+	private static boolean optionRecursive;
+
+	/** The option without folders. */
+	private static boolean optionWithoutFolders;
+
+	/** The option add all. */
+	private static boolean optionAddAll;
+
+	/** The option skip all. */
+	private static boolean optionSkipAll;
+
+	/** The option replace all. */
+	private static boolean optionReplaceAll;
+
+	/** The option disable retries. */
+	private static boolean optionDisableRetries;
+
 	/**
 	 * Constructor.
 	 * 
@@ -188,16 +205,18 @@ public class GoogleDocsUpload {
 		String authSub = parser.getValue("auth-sub", "auth", "as");
 		String username = parser.getValue("username", "user", "u");
 		String password = parser.getValue("password", "pass", "p");
-		String remoteFolder = parser.getValue("remote-folder", "rf");
 		String protocol = parser.getValue("protocol");
 		String host = parser.getValue("host", "s");
+		String remoteFolder = parser.getValue("remote-folder", "rf");
 		boolean help = parser.containsKey("help", "h");
-		boolean recursive = parser.containsKey("recursive", "r");
-		boolean withoutFolders = parser.containsKey("without-folders", "wf");
-		boolean addAll = parser.containsKey("add-all", "aa");
-		boolean skipAll = parser.containsKey("skip-all", "sa");
-		boolean replaceAll = parser.containsKey("replace-all", "ra");
-		boolean disableRetries = parser.containsKey("disable-retries", "dr");
+		
+		setOptionRecursive(parser.containsKey("recursive", "r"));
+		setOptionWithoutFolders(parser.containsKey("without-folders", "wf"));
+		setOptionAddAll(parser.containsKey("add-all", "aa"));
+		setOptionSkipAll(parser.containsKey("skip-all", "sa"));
+		setOptionReplaceAll(parser.containsKey("replace-all", "ra"));
+		setOptionDisableRetries(parser.containsKey("disable-retries", "dr"));
+		
 		String path = null;
 		
 		if (help) {
@@ -280,7 +299,7 @@ public class GoogleDocsUpload {
 			path = scanner.nextLine();						
 		}
 
-		app.upload(path, recursive, remoteFolder, withoutFolders, addAll, skipAll, replaceAll, disableRetries);
+		app.upload(path, remoteFolder);
 	}
 
 	/**
@@ -312,15 +331,9 @@ public class GoogleDocsUpload {
 	 * Uploads specified folder.
 	 * 
 	 * @param path the path to upload
-	 * @param recursive the flag for recursive upload
 	 * @param remoteFolder the remote folder
-	 * @param replaceAll the replace all
-	 * @param skipAll the skip all
-	 * @param addAll the add all
-	 * @param withoutFolders the without folders
-	 * @param disableRetries the disable retries
 	 */
-	public void upload(String path, boolean recursive, String remoteFolder, boolean withoutFolders, boolean addAll, boolean skipAll, boolean replaceAll, boolean disableRetries) {		
+	public void upload(String path, String remoteFolder) {		
 		File file = new File(path);
 		if (!file.exists()) {
 			printLine("Specified path " + path + " doesn't exist");
@@ -328,17 +341,21 @@ public class GoogleDocsUpload {
 		}
 		
 		if (file.isDirectory()) {
-			String message = "\nUploading" + (recursive ? " recursively" : "") + " the folder " + path;
+			String message = "\nUploading" + (isOptionRecursive() ? " recursively" : "") + " the folder " + path;
 			if (remoteFolder != null && remoteFolder.length() > 0) {
 				 message += " to " + remoteFolder;
 			}
-			printLine(message + "\n");					
-			int uploaded = uploadFolder(file, getRemoteFolderByPath(remoteFolder), 0, Integer.valueOf(getFileCount(file, recursive)), recursive, withoutFolders, Boolean.valueOf(addAll), Boolean.valueOf(skipAll), Boolean.valueOf(replaceAll), disableRetries);
+			printLine(message + "\n");
+			int[] counters = new int[2];
+			counters[0] = 0;
+			counters[1] = getFileCount(file, isOptionRecursive());
+			
+			int uploaded = uploadFolder(file, getRemoteFolderByPath(remoteFolder), counters);
 			printLine("\nFiles uploaded: " + uploaded);		
 		} else {
 			printLine("\n" + file.getAbsolutePath());
 			DocumentListEntry remoteFolderEntry = getRemoteFolderByPath(remoteFolder);
-			uploadFile(file, remoteFolderEntry, getDocsFromFolder(remoteFolderEntry), Boolean.valueOf(addAll), Boolean.valueOf(skipAll), Boolean.valueOf(replaceAll), disableRetries);
+			uploadFile(file, remoteFolderEntry, getDocsFromFolder(remoteFolderEntry));
 			printLine("\nThe file has been uploaded");
 		}		
 	}
@@ -349,36 +366,29 @@ public class GoogleDocsUpload {
 	 * 
 	 * @param folder the folder
 	 * @param remoteFolder the remote folder
-	 * @param totalFileCount the total file count
-	 * @param fileCount the file count
-	 * @param recursive the recursive
-	 * @param withoutFolders the without folders
-	 * @param addAll the add all duplicates
-	 * @param skipAll the skip all duplicates
-	 * @param replaceAll the replace all duplicates
-	 * @param disableRetries the disable retries
+	 * @param counters the counters
 	 * 
 	 * @return the number of uploaded documents
 	 */
-	protected int uploadFolder(File folder, DocumentListEntry remoteFolder, Integer fileCount, Integer totalFileCount, boolean recursive, boolean withoutFolders, Boolean addAll, Boolean skipAll, Boolean replaceAll, boolean disableRetries) {
+	protected int uploadFolder(File folder, DocumentListEntry remoteFolder, int[] counters) {
 		folder.setReadOnly();
 		DocumentListFeed remoteSubFolders = getSubFolders(remoteFolder);
 		DocumentListFeed remoteDocs = getDocsFromFolder(remoteFolder);
 		int uploaded = 0;
 		for (File file : folder.listFiles()) {
 			if (!file.isDirectory()) {	
-				fileCount++;
-				printLine("[" + fileCount + "/" + totalFileCount + "] " + file.getAbsolutePath());
-				if (uploadFile(file, remoteFolder, remoteDocs, addAll, skipAll, replaceAll, disableRetries)) {
+				counters[0]++;
+				printLine("[" + counters[0] + "/" + counters[1] + "] " + file.getAbsolutePath());
+				if (uploadFile(file, remoteFolder, remoteDocs)) {
 					uploaded++;
 				}
 			}
 		}
 		
 		for (File file : folder.listFiles()) {
-			if (recursive && file.isDirectory()) {
+			if (isOptionRecursive() && file.isDirectory()) {
 				DocumentListEntry currentRemoteFolder = null;
-				if (!withoutFolders) {
+				if (!isOptionWithoutFolders()) {
 					currentRemoteFolder = documentListFindByTitle(getFolderName(file), remoteSubFolders);
 					if (currentRemoteFolder == null) {
 						try {
@@ -396,7 +406,7 @@ public class GoogleDocsUpload {
 						}
 					}
 				}
-				uploaded += uploadFolder(file, currentRemoteFolder, fileCount, totalFileCount, recursive, withoutFolders, addAll, skipAll, replaceAll, disableRetries);
+				uploaded += uploadFolder(file, currentRemoteFolder, counters);
 			} 
 		}
 		
@@ -409,14 +419,10 @@ public class GoogleDocsUpload {
 	 * @param file the file
 	 * @param remoteFolder the remote folder
 	 * @param remoteDocs the remote docs
-	 * @param addAll the add all
-	 * @param skipAll the skip all
-	 * @param replaceAll the replace all
-	 * @param disableRetries the disable retries
 	 * 
 	 * @return true, if successful
 	 */
-	protected boolean uploadFile(File file, DocumentListEntry remoteFolder, DocumentListFeed remoteDocs, Boolean addAll, Boolean skipAll, Boolean replaceAll, boolean disableRetries) {	
+	protected boolean uploadFile(File file, DocumentListEntry remoteFolder, DocumentListFeed remoteDocs) {	
 		if (!isAllowedFormat(file)) {
 			printLine(" - Skipped: the file format is not supported");
 			return false;
@@ -428,10 +434,10 @@ public class GoogleDocsUpload {
 
 		DocumentListEntry currentRemoteDoc = documentListFindByTitle(getFileName(file), remoteDocs);
 		boolean skip = false;
-		if (currentRemoteDoc != null && !addAll && currentRemoteDoc.getType().equals(getFileType(file))) {
+		if (currentRemoteDoc != null && !isOptionAddAll() && currentRemoteDoc.getType().equals(getFileType(file))) {
 			boolean replace = false;
 			
-			if (!skipAll && !replaceAll) {
+			if (!isOptionSkipAll() && !isOptionReplaceAll()) {
 				String choice = null;
 				printLine(" - A document with the same name and type found in Google Docs");
 				
@@ -449,15 +455,15 @@ public class GoogleDocsUpload {
 				} else if (choice.equals("r")) {
 					replace = true;							
 				} else if (choice.equals("aa")) {
-					addAll = true;							
+					setOptionAddAll(true);							
 				} else if (choice.equals("sa")) {
-					skipAll = true;							
+					setOptionSkipAll(true);							
 				} else if (choice.equals("ra")) {
-					replaceAll = true;							
+					setOptionReplaceAll(true);							
 				}
 			}
 			
-			if (replaceAll || replace) {
+			if (isOptionReplaceAll() || replace) {
 				try {
 					getDocumentList().trashObject(currentRemoteDoc.getResourceId(), true);
 				} catch (Exception e) {
@@ -466,9 +472,9 @@ public class GoogleDocsUpload {
 			}										
 		}
 			
-		if (currentRemoteDoc == null || !skipAll && !skip) {
+		if (currentRemoteDoc == null || !isOptionSkipAll() && !skip) {
 			int cnt = 3;
-			if (disableRetries) {
+			if (isOptionDisableRetries()) {
 				cnt = 1;
 			}
 			for (int i = 0; i < cnt; i++) {				
@@ -478,26 +484,20 @@ public class GoogleDocsUpload {
 					} else {
 						getDocumentList().uploadFileToFolder(file.getAbsolutePath(), getFileName(file), remoteFolder.getResourceId());
 					}
-					break;
-				} catch (InvalidEntryException e) {
-					printLine(" - Skipped: " + e.getMessage());
-					return false;		
+					return true;		
 				} catch (Exception e) {
 					printLine(" - Upload error: " + e.getMessage());
-					if (i < 2 && !disableRetries) {
+					if (i < 2 && !isOptionDisableRetries()) {
 						printLine(" - Another try...");
 					} else {
-						printLine(" - Skipped");
-						return false;
+						break;
 					}
 				}
 			}
-		} else {
-			printLine(" - Skipped");
-			return false;
 		}
 		
-		return true;		
+		printLine(" - Skipped");
+		return false;		
 	}
 	
 	/**
@@ -550,38 +550,61 @@ public class GoogleDocsUpload {
 	 * @return the docs
 	 */
 	public DocumentListFeed getDocsFromFolder(DocumentListEntry folder) {
-		DocumentListFeed results = null;
-		if (folder == null) {
-			results = new DocumentListFeed();
-			DocumentListFeed docs = null;
+		DocumentListFeed results = new DocumentListFeed();
+		DocumentListFeed docs = null;
+		List<DocumentListEntry> list = new ArrayList<DocumentListEntry>();
+		
+		if (folder == null) {			
 			try {
-				docs = getDocumentList().getDocsListFeed("all");
+				docs = getDocumentList().getDocsListFeed("all");				
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			List<DocumentListEntry> list = new ArrayList<DocumentListEntry>();
-			for (DocumentListEntry doc : docs.getEntries()) {
-				if (doc.getParentLinks().isEmpty() && !doc.getType().equals("folder")) {
-					list.add(doc);
-				}			
+
+			while (true) {
+				if (docs.getEntries().size() > 0) {
+					for (DocumentListEntry doc : docs.getEntries()) {
+						if (doc.getParentLinks().isEmpty() && !doc.getType().equals("folder")) {
+							list.add(doc);
+						}			
+					}
+					
+					try {
+						docs = getDocumentList().getDocsListFeed(docs.getNextLink());
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} else {
+					break;				
+				}
 			}
-			results.setEntries(list);
 		} else {
-			results = new DocumentListFeed();
-			DocumentListFeed docs = null;
 			try {
 				docs = getDocumentList().getFolderDocsListFeed(folder.getResourceId());
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			List<DocumentListEntry> list = new ArrayList<DocumentListEntry>();
-			for (DocumentListEntry doc : docs.getEntries()) {
-				if (!doc.getType().equals("folder")) {
-					list.add(doc);
-				}			
-			}
-			results.setEntries(list);					
+			
+			while (true) {
+				if (docs.getEntries().size() > 0) {
+					for (DocumentListEntry doc : docs.getEntries()) {
+						if (!doc.getType().equals("folder")) {
+							list.add(doc);
+						}			
+					}
+					
+					try {
+						docs = getDocumentList().getDocsListFeed(docs.getNextLink());
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				} else {
+					break;				
+				}
+			}	
 		}
+		
+		results.setEntries(list);					
 		return results;
 	}
 	
@@ -788,6 +811,114 @@ public class GoogleDocsUpload {
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * Checks if is option recursive.
+	 * 
+	 * @return true, if is option recursive
+	 */
+	protected static boolean isOptionRecursive() {
+		return optionRecursive;
+	}
+
+	/**
+	 * Sets the option recursive.
+	 * 
+	 * @param optionRecursive the new option recursive
+	 */
+	protected static void setOptionRecursive(boolean optionRecursive) {
+		GoogleDocsUpload.optionRecursive = optionRecursive;
+	}
+
+	/**
+	 * Checks if is option without folders.
+	 * 
+	 * @return true, if is option without folders
+	 */
+	protected static boolean isOptionWithoutFolders() {
+		return optionWithoutFolders;
+	}
+
+	/**
+	 * Sets the option without folders.
+	 * 
+	 * @param optionWithoutFolders the new option without folders
+	 */
+	protected static void setOptionWithoutFolders(boolean optionWithoutFolders) {
+		GoogleDocsUpload.optionWithoutFolders = optionWithoutFolders;
+	}
+
+	/**
+	 * Checks if is option add all.
+	 * 
+	 * @return true, if is option add all
+	 */
+	protected static boolean isOptionAddAll() {
+		return optionAddAll;
+	}
+
+	/**
+	 * Sets the option add all.
+	 * 
+	 * @param optionAddAll the new option add all
+	 */
+	protected static void setOptionAddAll(boolean optionAddAll) {
+		GoogleDocsUpload.optionAddAll = optionAddAll;
+	}
+
+	/**
+	 * Checks if is option skip all.
+	 * 
+	 * @return true, if is option skip all
+	 */
+	protected static boolean isOptionSkipAll() {
+		return optionSkipAll;
+	}
+
+	/**
+	 * Sets the option skip all.
+	 * 
+	 * @param optionSkipAll the new option skip all
+	 */
+	protected static void setOptionSkipAll(boolean optionSkipAll) {
+		GoogleDocsUpload.optionSkipAll = optionSkipAll;
+	}
+
+	/**
+	 * Checks if is option replace all.
+	 * 
+	 * @return true, if is option replace all
+	 */
+	protected static boolean isOptionReplaceAll() {
+		return optionReplaceAll;
+	}
+
+	/**
+	 * Sets the option replace all.
+	 * 
+	 * @param optionReplaceAll the new option replace all
+	 */
+	protected static void setOptionReplaceAll(boolean optionReplaceAll) {
+		GoogleDocsUpload.optionReplaceAll = optionReplaceAll;
+	}
+
+	/**
+	 * Checks if is option disable retries.
+	 * 
+	 * @return true, if is option disable retries
+	 */
+	protected static boolean isOptionDisableRetries() {
+		return optionDisableRetries;
+	}
+
+	/**
+	 * Sets the option disable retries.
+	 * 
+	 * @param optionDisableRetries the new option disable retries
+	 */
+	protected static void setOptionDisableRetries(boolean optionDisableRetries) {
+		GoogleDocsUpload.optionDisableRetries = optionDisableRetries;
 	}
 	
 }
