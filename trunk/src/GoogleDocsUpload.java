@@ -61,7 +61,7 @@ import com.google.gdata.util.ServiceException;
  * 
  * @author Anton Beloglazov
  * @since 03/09/2009
- * @version 1.3 27/12/2009
+ * @version 1.3.1 02/01/2010
  */
 public class GoogleDocsUpload {
 
@@ -128,7 +128,7 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	protected static final String[] WELCOME_MESSAGE = { "",
-		"Google Docs Upload 1.3",
+		"Google Docs Upload 1.3.1",
 		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
 		"Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.",
 		"Type 'help' for a list of parameters.", "" 
@@ -673,7 +673,7 @@ public class GoogleDocsUpload {
 	 * @return the file name
 	 */
 	protected static String getFileName(File file) {
-		return file.getName().substring(0, file.getName().lastIndexOf(".")); //.replaceAll("[^\\p{L}\\p{N}]", "");
+		return file.getName().substring(0, file.getName().lastIndexOf("."));
 	}
 	
 	/**
@@ -684,7 +684,7 @@ public class GoogleDocsUpload {
 	 * @return the folder name
 	 */
 	protected static String getFolderName(File folder) {
-		return folder.getName().replaceAll("[^\\p{L}\\p{N}]", "");
+		return folder.getName();
 	}
 	
 	/**
