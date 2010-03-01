@@ -556,13 +556,13 @@ public class GoogleDocsUpload {
 		
 		if (folder == null) {			
 			try {
-				docs = getDocumentList().getDocsListFeed("all");				
+				docs = getDocumentList().getDocsListFeed("all");
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
 
 			while (true) {
-				if (docs.getEntries().size() > 0) {
+				if (docs != null && docs.getEntries().size() > 0) { // docs.getTotalResults() != -1 && 
 					for (DocumentListEntry doc : docs.getEntries()) {
 						if (doc.getParentLinks().isEmpty() && !doc.getType().equals("folder")) {
 							list.add(doc);
@@ -573,6 +573,7 @@ public class GoogleDocsUpload {
 						docs = getDocumentList().getDocsListFeed(docs.getNextLink());
 					} catch (Exception e) {
 						e.printStackTrace();
+						break;
 					}
 				} else {
 					break;				

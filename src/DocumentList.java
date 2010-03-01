@@ -351,7 +351,10 @@ public class DocumentList {
 	}
 	
 	public DocumentListFeed getDocsListFeed(Link link) throws MalformedURLException, IOException, ServiceException, DocumentListException {
-		return service.getFeed(new URL(link.getHref()), DocumentListFeed.class);
+		if (link != null) {
+			return service.getFeed(new URL(link.getHref()), DocumentListFeed.class);
+		}
+		return null;
 	}
 
 	/**
