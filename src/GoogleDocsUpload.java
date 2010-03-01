@@ -587,7 +587,7 @@ public class GoogleDocsUpload {
 			}
 			
 			while (true) {
-				if (docs.getEntries().size() > 0) {
+				if (docs != null && docs.getEntries().size() > 0) {
 					for (DocumentListEntry doc : docs.getEntries()) {
 						if (!doc.getType().equals("folder")) {
 							list.add(doc);
@@ -598,6 +598,7 @@ public class GoogleDocsUpload {
 						docs = getDocumentList().getDocsListFeed(docs.getNextLink());
 					} catch (Exception e) {
 						e.printStackTrace();
+						break;
 					}
 				} else {
 					break;				
