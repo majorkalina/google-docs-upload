@@ -568,7 +568,7 @@ public class DocumentList {
 	 *             service.
 	 * @throws DocumentListException
 	 */
-	public DocumentListEntry uploadFile(String filepath, String title)
+	public DocumentListEntry uploadFile(String filepath, String title, boolean convert, boolean hidden)
 			throws IOException, ServiceException, DocumentListException {
 		if (filepath == null || title == null) {
 			throw new DocumentListException(
@@ -582,9 +582,13 @@ public class DocumentList {
 		DocumentEntry newDocument = new DocumentEntry();
 		newDocument.setFile(file, mimeType);
 		newDocument.setTitle(new PlainTextConstruct(title));
+		newDocument.setHidden(hidden);
 
-		return service.insert(buildUrl(URL_DEFAULT + URL_DOCLIST_FEED),
-				newDocument);
+		String url = URL_DEFAULT + URL_DOCLIST_FEED;
+		if (!convert) {
+			url += "?convert=false";
+		}
+		return service.insert(buildUrl(url), newDocument);
 	}
 	
 
@@ -603,7 +607,7 @@ public class DocumentList {
 	 *             service.
 	 * @throws DocumentListException
 	 */
-	public DocumentListEntry uploadFileToFolder(String filepath, String title, String folderResourceId)
+	public DocumentListEntry uploadFileToFolder(String filepath, String title, String folderResourceId, boolean convert, boolean hidden)
 			throws IOException, ServiceException, DocumentListException {
 		if (filepath == null || title == null) {
 			throw new DocumentListException(
@@ -617,10 +621,32 @@ public class DocumentList {
 		DocumentEntry newDocument = new DocumentEntry();
 		newDocument.setFile(file, mimeType);
 		newDocument.setTitle(new PlainTextConstruct(title));
+		newDocument.setHidden(hidden);
 		
-		URL url = buildUrl(URL_DEFAULT + URL_DOCLIST_FEED + "/" + folderResourceId + URL_FOLDERS);
-		return service.insert(url, newDocument);
+		String url = URL_DEFAULT + URL_DOCLIST_FEED + "/" + folderResourceId + URL_FOLDERS;
+		if (!convert) {
+			url += "?convert=false";
+		}
+		
+		return service.insert(buildUrl(url), newDocument);
 	}
+	
+	public DocumentListEntry updateFile(String filepath, String title, DocumentListEntry entry, boolean hidden)
+			throws IOException, ServiceException, DocumentListException {
+		if (filepath == null || title == null) {
+			throw new DocumentListException(
+					"null passed in for required parameters");
+		}
+		
+		File file = new File(filepath);
+		String mimeType = DocumentListEntry.MediaType.fromFileName(
+				file.getName()).getMimeType();
+		
+		entry.setFile(file, mimeType);
+		entry.setHidden(hidden);
+		return entry.updateMedia(true);
+	}
+	
 
 	/**
 	 * Trash an object.

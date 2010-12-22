@@ -1,4 +1,4 @@
-/* Copyright (c) 2009 Anton Beloglazov, http://beloglazov.info
+/* Copyright (c) 2009-2010 Anton Beloglazov, http://beloglazov.info
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import com.google.gdata.data.docs.DocumentListEntry;
 import com.google.gdata.data.docs.DocumentListFeed;
 import com.google.gdata.util.AuthenticationException;
 import com.google.gdata.util.ServiceException;
+import com.google.gdata.util.ServiceForbiddenException;
 
 /**
  * Google Docs Upload
@@ -60,7 +61,7 @@ import com.google.gdata.util.ServiceException;
  * 
  * @author Anton Beloglazov
  * @since 03/09/2009
- * @version 1.3.1 02/01/2010
+ * @version 1.4 23/12/2010
  */
 public class GoogleDocsUpload {
 
@@ -82,7 +83,8 @@ public class GoogleDocsUpload {
 	private static FileFilter folderFilter = new FileFilter() {		
 		@Override
 		public boolean accept(File file) {
-			return file.isDirectory();
+			boolean isMacOSX = file.getName().equals("__MACOSX");
+			return file.isDirectory() && !isMacOSX;
 		}
 	};
 	
@@ -127,14 +129,15 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	protected static final String[] WELCOME_MESSAGE = { "",
-		"Google Docs Upload 1.3.1",
+		"Google Docs Upload 1.4",
 		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
-		"Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
 	
 	/** The message for displaying the usage parameters. */
 	protected static final String[] USAGE_MESSAGE = { "",
+		"Google Docs Upload 1.4",
+		"",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
 		"Usage: java -jar google-docs-upload.jar <path> --username <username> --password <password>",
@@ -143,7 +146,9 @@ public class GoogleDocsUpload {
 		"    [--password <password>]       Password for a Google account.",
 		"    [--recursive]                 Recursively upload all subfolders.",
 		"    [--remote-folder]             The remote folder path to upload the documents separated by '/'.",
-		"    [--without-folders]           Do not recreate folder structure in Google Docs.",		
+		"    [--without-conversion]        Do not convert documents into the Google Docs format (not supported files are not converted by default).",
+		"    [--without-folders]           Do not recreate folder structure in Google Docs.",
+		"    [--hide-all]                  Hide all documents after uploading.",
 		"    [--add-all]                   Upload all documents even if there are already documents with the same names.",		
 		"    [--skip-all]                  Skip all documents if there there are already documents with the same names.",		
 		"    [--replace-all]               Replace all documents in Google Docs, which have the same names as the uploaded.",		
@@ -159,8 +164,14 @@ public class GoogleDocsUpload {
 	/** The option recursive. */
 	private static boolean optionRecursive;
 
+	/** The option without conversion. */
+	private static boolean optionWithoutConversion;
+
 	/** The option without folders. */
 	private static boolean optionWithoutFolders;
+
+	/** The option hide all. */
+	private static boolean optionHideAll;
 
 	/** The option add all. */
 	private static boolean optionAddAll;
@@ -211,7 +222,9 @@ public class GoogleDocsUpload {
 		boolean help = parser.containsKey("help", "h");
 		
 		setOptionRecursive(parser.containsKey("recursive", "r"));
+		setOptionWithoutConversion(parser.containsKey("without-conversion", "wc"));
 		setOptionWithoutFolders(parser.containsKey("without-folders", "wf"));
+		setOptionHideAll(parser.containsKey("hide-all", "ha"));
 		setOptionAddAll(parser.containsKey("add-all", "aa"));
 		setOptionSkipAll(parser.containsKey("skip-all", "sa"));
 		setOptionReplaceAll(parser.containsKey("replace-all", "ra"));
@@ -221,15 +234,6 @@ public class GoogleDocsUpload {
 		
 		if (help) {
 			printMessages(USAGE_MESSAGE);
-			print("Supported file formats are: ");
-			boolean notFirst = false;
-			for (String format : SUPPORTED_FORMATS) {
-				if (notFirst) {
-					print(", ");	
-				}
-				print(format);				
-				notFirst = true;
-			}
 			printLine("");
 			System.exit(1);
 		}
@@ -351,7 +355,7 @@ public class GoogleDocsUpload {
 			counters[1] = getFileCount(file, isOptionRecursive());
 			
 			int uploaded = uploadFolder(file, getRemoteFolderByPath(remoteFolder), counters);
-			printLine("\nFiles uploaded: " + uploaded);		
+			printLine("\nFiles uploaded: " + uploaded + " out of " + counters[1]);		
 		} else {
 			printLine("\n" + file.getAbsolutePath());
 			DocumentListEntry remoteFolderEntry = getRemoteFolderByPath(remoteFolder);
@@ -379,7 +383,9 @@ public class GoogleDocsUpload {
 			if (!file.isDirectory()) {	
 				counters[0]++;
 				printLine("[" + counters[0] + "/" + counters[1] + "] " + file.getAbsolutePath());
-				if (uploadFile(file, remoteFolder, remoteDocs)) {
+				DocumentListEntry entry = uploadFile(file, remoteFolder, remoteDocs); 
+				if (entry != null) {
+					printLine(" - Uploaded: " + entry.getResourceId());
 					uploaded++;
 				}
 			}
@@ -422,15 +428,15 @@ public class GoogleDocsUpload {
 	 * 
 	 * @return true, if successful
 	 */
-	protected boolean uploadFile(File file, DocumentListEntry remoteFolder, DocumentListFeed remoteDocs) {	
-		if (!isAllowedFormat(file)) {
-			printLine(" - Skipped: the file format is not supported");
-			return false;
-		}
-		if (!isAllowedSize(file)) {
-			printLine(" - Skipped: the file size exceeds the limit");
-			return false;
-		}
+	protected DocumentListEntry uploadFile(File file, DocumentListEntry remoteFolder, DocumentListFeed remoteDocs) {	
+//		if (!isAllowedFormat(file)) {
+//			printLine(" - Skipped: the file format is not supported");
+//			return false;
+//		}
+//		if (!isAllowedSize(file)) {
+//			printLine(" - Skipped: the file size exceeds the limit");
+//			return null;
+//		}
 
 		DocumentListEntry currentRemoteDoc = documentListFindByTitle(getFileName(file), remoteDocs);
 		boolean skip = false;
@@ -465,7 +471,8 @@ public class GoogleDocsUpload {
 			
 			if (isOptionReplaceAll() || replace) {
 				try {
-					getDocumentList().trashObject(currentRemoteDoc.getResourceId(), true);
+					//getDocumentList().trashObject(currentRemoteDoc.getResourceId(), true);
+					return getDocumentList().updateFile(file.getAbsolutePath(), getFileName(file), currentRemoteDoc, isOptionHideAll());
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
@@ -479,12 +486,23 @@ public class GoogleDocsUpload {
 			}
 			for (int i = 0; i < cnt; i++) {				
 				try {
-					if (remoteFolder == null) {
-						getDocumentList().uploadFile(file.getAbsolutePath(), getFileName(file));
+					boolean convert = true;
+					if (isOptionWithoutConversion()) {
+						convert = false;
 					} else {
-						getDocumentList().uploadFileToFolder(file.getAbsolutePath(), getFileName(file), remoteFolder.getResourceId());
+						convert = isAllowedFormat(file);
+						if (!convert) {
+							printLine(" - Uploading without conversion");
+						}
 					}
-					return true;		
+					if (remoteFolder == null) {
+						return getDocumentList().uploadFile(file.getAbsolutePath(), getFileName(file), convert, isOptionHideAll());
+					} else {
+						return getDocumentList().uploadFileToFolder(file.getAbsolutePath(), getFileName(file), remoteFolder.getResourceId(), convert, isOptionHideAll());
+					}
+				} catch (ServiceForbiddenException e) {
+					printLine(" - Uploading without conversion is only available to Google Apps for Business accounts");
+					break;
 				} catch (Exception e) {
 					printLine(" - Upload error: " + e.getMessage());
 					if (i < 2 && !isOptionDisableRetries()) {
@@ -497,7 +515,7 @@ public class GoogleDocsUpload {
 		}
 		
 		printLine(" - Skipped");
-		return false;		
+		return null;		
 	}
 	
 	/**
@@ -683,11 +701,11 @@ public class GoogleDocsUpload {
 	 * @return true, if is allowed size
 	 */
 	protected boolean isAllowedSize(File file) {
-		Long size = SIZE_LIMITS.get(getFileType(file));
-		if (size != null && file.length() <= size) {
+		//Long size = SIZE_LIMITS.get(getFileType(file));
+		//if (size != null && file.length() <= size) {
 			return true;			
-		}
-		return false;
+		//}
+		//return false;
 	}
 	
 	/**
@@ -698,7 +716,10 @@ public class GoogleDocsUpload {
 	 * @return the file name
 	 */
 	protected static String getFileName(File file) {
-		return file.getName().substring(0, file.getName().lastIndexOf("."));
+		if (file.getName().lastIndexOf(".") != -1) {
+			return file.getName().substring(0, file.getName().lastIndexOf("."));
+		}
+		return file.getName();
 	}
 	
 	/**
@@ -720,7 +741,10 @@ public class GoogleDocsUpload {
 	 * @return the file extension
 	 */
 	protected static String getFileExtension(File file) {
-		return file.getName().substring(file.getName().lastIndexOf(".") + 1).toLowerCase();
+		if (file.getName().lastIndexOf(".") != -1) {
+			return file.getName().substring(file.getName().lastIndexOf(".") + 1).toLowerCase();
+		}
+		return "";
 	}
 	
 	/**
@@ -834,6 +858,24 @@ public class GoogleDocsUpload {
 	}
 
 	/**
+	 * Checks if is option without conversion.
+	 * 
+	 * @return true, if is option without conversion
+	 */
+	protected static boolean isOptionWithoutConversion() {
+		return optionWithoutConversion;
+	}
+
+	/**
+	 * Sets the option without conversion.
+	 * 
+	 * @param optionWithoutConversion the new option without conversion
+	 */
+	protected static void setOptionWithoutConversion(boolean optionWithoutConversion) {
+		GoogleDocsUpload.optionWithoutConversion = optionWithoutConversion;
+	}
+
+	/**
 	 * Checks if is option without folders.
 	 * 
 	 * @return true, if is option without folders
@@ -849,6 +891,24 @@ public class GoogleDocsUpload {
 	 */
 	protected static void setOptionWithoutFolders(boolean optionWithoutFolders) {
 		GoogleDocsUpload.optionWithoutFolders = optionWithoutFolders;
+	}
+	
+	/**
+	 * Checks if is option hide all.
+	 * 
+	 * @return true, if is option hide all
+	 */
+	protected static boolean isOptionHideAll() {
+		return optionHideAll;
+	}
+
+	/**
+	 * Sets the option hide all.
+	 * 
+	 * @param optionHideAll the new option hide all
+	 */
+	protected static void setOptionHideAll(boolean optionHideAll) {
+		GoogleDocsUpload.optionHideAll = optionHideAll;
 	}
 
 	/**
