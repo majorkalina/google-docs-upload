@@ -36,7 +36,6 @@ import com.google.gdata.util.ServiceForbiddenException;
  * Google Docs Upload
  * 
  * A tool for batch upload of documents to a Google Docs account preserving folder structure.
- * Supported file formats are: csv, doc, docx, html, htm, ods, odt, pdf, ppt, pps, rtf, sxw, tsv, tab, txt, xls, xlsx.
  * 
  * Usage: java -jar google-docs-upload.jar
  * Usage: java -jar google-docs-upload.jar <path> --recursive
@@ -46,7 +45,9 @@ import com.google.gdata.util.ServiceForbiddenException;
  * [--password <password>]       Password for a Google account.
  * [--recursive]                 Recursively upload all subfolders.
  * [--remote-folder]             The remote folder path to upload the documents separated by '/'.
+ * [--without-conversion]        Do not convert documents into the Google Docs format (not supported files are not converted by default).
  * [--without-folders]           Do not recreate folder structure in Google Docs.
+ * [--hide-all]                  Hide all documents after uploading.
  * [--add-all]                   Upload all documents even if there are already documents with the same names.
  * [--skip-all]                  Skip all documents if there there are already documents with the same names.
  * [--replace-all]               Replace all documents in Google Docs, which have the same names as the uploaded.
