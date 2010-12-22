@@ -45,7 +45,7 @@ import com.google.gdata.util.ServiceForbiddenException;
  * [--password <password>]       Password for a Google account.
  * [--recursive]                 Recursively upload all subfolders.
  * [--remote-folder]             The remote folder path to upload the documents separated by '/'.
- * [--without-conversion]        Do not convert documents into the Google Docs format (not supported files are not converted by default).
+ * [--without-conversion]        Do not convert documents into the Google Docs format (unsupported files are not converted by default).
  * [--without-folders]           Do not recreate folder structure in Google Docs.
  * [--hide-all]                  Hide all documents after uploading.
  * [--add-all]                   Upload all documents even if there are already documents with the same names.
@@ -147,7 +147,7 @@ public class GoogleDocsUpload {
 		"    [--password <password>]       Password for a Google account.",
 		"    [--recursive]                 Recursively upload all subfolders.",
 		"    [--remote-folder]             The remote folder path to upload the documents separated by '/'.",
-		"    [--without-conversion]        Do not convert documents into the Google Docs format (not supported files are not converted by default).",
+		"    [--without-conversion]        Do not convert documents into the Google Docs format (unsupported files are not converted by default).",
 		"    [--without-folders]           Do not recreate folder structure in Google Docs.",
 		"    [--hide-all]                  Hide all documents after uploading.",
 		"    [--add-all]                   Upload all documents even if there are already documents with the same names.",		
