@@ -576,11 +576,13 @@ public class DocumentList {
 		}
 
 		File file = new File(filepath);
-		String mimeType = DocumentListEntry.MediaType.fromFileName(
-				file.getName()).getMimeType();
 
 		DocumentEntry newDocument = new DocumentEntry();
-		newDocument.setFile(file, mimeType);
+		if (convert) {
+			String mimeType = DocumentListEntry.MediaType.fromFileName(
+					file.getName()).getMimeType();
+			newDocument.setFile(file, mimeType);
+		}
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
 
@@ -615,11 +617,13 @@ public class DocumentList {
 		}
 
 		File file = new File(filepath);
-		String mimeType = DocumentListEntry.MediaType.fromFileName(
-				file.getName()).getMimeType();
 
 		DocumentEntry newDocument = new DocumentEntry();
-		newDocument.setFile(file, mimeType);
+		if (convert) {
+			String mimeType = DocumentListEntry.MediaType.fromFileName(
+					file.getName()).getMimeType();
+			newDocument.setFile(file, mimeType);
+		}
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
 		
