@@ -578,11 +578,17 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-		if (convert) {
-			String mimeType = DocumentListEntry.MediaType.fromFileName(
-					file.getName()).getMimeType();
+		
+		String mimeType = "";
+		try {
+			mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
+		} catch (IllegalArgumentException e) {
+		}
+		
+		if (mimeType != "") {
 			newDocument.setFile(file, mimeType);
 		}
+		
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
 
@@ -619,11 +625,17 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-		if (convert) {
-			String mimeType = DocumentListEntry.MediaType.fromFileName(
-					file.getName()).getMimeType();
+		
+		String mimeType = "";
+		try {
+			mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
+		} catch (IllegalArgumentException e) {
+		}
+		
+		if (mimeType != "") {
 			newDocument.setFile(file, mimeType);
 		}
+		
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
 		
