@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2010 Anton Beloglazov, http://beloglazov.info
+/* Copyright (c) 2009-2011 Anton Beloglazov, http://beloglazov.info
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -62,7 +62,7 @@ import com.google.gdata.util.ServiceForbiddenException;
  * 
  * @author Anton Beloglazov
  * @since 03/09/2009
- * @version 1.4.2 18/01/2010
+ * @version 1.4.3 21/03/2011
  */
 public class GoogleDocsUpload {
 
@@ -130,14 +130,14 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	protected static final String[] WELCOME_MESSAGE = { "",
-		"Google Docs Upload 1.4.2",
+		"Google Docs Upload 1.4.3",
 		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
 	
 	/** The message for displaying the usage parameters. */
 	protected static final String[] USAGE_MESSAGE = { "",
-		"Google Docs Upload 1.4.2",
+		"Google Docs Upload 1.4.3",
 		"",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
@@ -203,12 +203,11 @@ public class GoogleDocsUpload {
 	
 	/**
 	 * Runs the application.
-	 * 
+	 *
 	 * @param args the command-line arguments
-	 * 
 	 * @throws DocumentListException the document list exception
-	 * @throws ServiceException the service exception
 	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @throws ServiceException the service exception
 	 */
 	public static void main(String[] args) throws DocumentListException, IOException, ServiceException {
 		SimpleCommandLineParser parser = new SimpleCommandLineParser(args);
@@ -309,12 +308,11 @@ public class GoogleDocsUpload {
 
 	/**
 	 * Authenticates the client using ClientLogin.
-	 * 
+	 *
 	 * @param username User's username
 	 * @param password User's password
-	 * 
-	 * @throws DocumentListException the document list exception
 	 * @throws AuthenticationException the authentication exception
+	 * @throws DocumentListException the document list exception
 	 */
 	public void login(String username, String password) throws AuthenticationException, DocumentListException {
 		getDocumentList().login(username, password);
@@ -322,11 +320,10 @@ public class GoogleDocsUpload {
 	
 	/**
 	 * Authenticates the client using AuthSub.
-	 * 
+	 *
 	 * @param authSubToken the auth sub token
-	 * 
-	 * @throws DocumentListException the document list exception
 	 * @throws AuthenticationException the authentication exception
+	 * @throws DocumentListException the document list exception
 	 */
 	public void login(String authSubToken) throws AuthenticationException, DocumentListException {
 		getDocumentList().loginWithAuthSubToken(authSubToken);
@@ -496,10 +493,17 @@ public class GoogleDocsUpload {
 							printLine(" - Uploading without conversion");
 						}
 					}
-					if (remoteFolder == null) {
-						return getDocumentList().uploadFile(file.getAbsolutePath(), getFileName(file), convert, isOptionHideAll());
+					String name = null;
+					if (convert) {
+						name = getFileName(file);
 					} else {
-						return getDocumentList().uploadFileToFolder(file.getAbsolutePath(), getFileName(file), remoteFolder.getResourceId(), convert, isOptionHideAll());
+						name = file.getName();
+					}
+					
+					if (remoteFolder == null) {
+						return getDocumentList().uploadFile(file.getAbsolutePath(), name, convert, isOptionHideAll());
+					} else {
+						return getDocumentList().uploadFileToFolder(file.getAbsolutePath(), name, remoteFolder.getResourceId(), convert, isOptionHideAll());
 					}
 				} catch (ServiceForbiddenException e) {
 					printLine(" - Uploading without conversion is only available to Google Apps for Business accounts");
@@ -645,7 +649,7 @@ public class GoogleDocsUpload {
 		DocumentListEntry parentRemoteFolder = null;
 		DocumentListEntry currentRemoteFolder = null;
 		for (String folder : pathArray) {
-			if (folder.length() == 0) {
+			if (folder.isEmpty()) {
 				continue;
 			}
 			currentRemoteFolder = documentListFindByTitle(folder, remoteSubFolders);
@@ -655,7 +659,7 @@ public class GoogleDocsUpload {
 						currentRemoteFolder = getDocumentList().createNew(folder, "folder");
 					} else {
 						currentRemoteFolder = getDocumentList().createNewSubFolder(folder, parentRemoteFolder.getResourceId());
-					}						
+					}
 				} catch (Exception e) {
 					e.printStackTrace();
 				}			
@@ -717,10 +721,16 @@ public class GoogleDocsUpload {
 	 * @return the file name
 	 */
 	protected static String getFileName(File file) {
+		String name = null;
 		if (file.getName().lastIndexOf(".") != -1) {
-			return file.getName().substring(0, file.getName().lastIndexOf("."));
+			name = file.getName().substring(0, file.getName().lastIndexOf("."));
+		} else {
+			name = file.getName();
 		}
-		return file.getName();
+		if (name == null || name.isEmpty()) {
+			name = "Unnamed";
+		}
+		return name;
 	}
 	
 	/**
