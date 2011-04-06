@@ -514,7 +514,8 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-		newDocument.setFile(file, new MimetypesFileTypeMap().getContentType(file));
+		
+		newDocument.setFile(file, getMimeType(file));
 		
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
@@ -549,7 +550,8 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-		newDocument.setFile(file, new MimetypesFileTypeMap().getContentType(file));
+		
+        newDocument.setFile(file, getMimeType(file));
 
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
@@ -569,11 +571,25 @@ public class DocumentList {
 		}
 
 		File file = new File(filepath);
-		String mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
 
-		entry.setFile(file, mimeType);
+        entry.setFile(file, getMimeType(file));
+        
 		entry.setHidden(hidden);
 		return entry.updateMedia(true);
+	}
+	
+	public String getMimeType(File file) {
+		String mimeType = "";
+        try {
+        	mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
+        } catch (IllegalArgumentException e) {
+        }
+
+        if (mimeType == "") {
+        	mimeType = new MimetypesFileTypeMap().getContentType(file);
+        }
+        
+        return mimeType;		
 	}
 
 	/**
