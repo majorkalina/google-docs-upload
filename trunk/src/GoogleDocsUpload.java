@@ -62,7 +62,7 @@ import com.google.gdata.util.ServiceForbiddenException;
  * 
  * @author Anton Beloglazov
  * @since 03/09/2009
- * @version 1.4.3 21/03/2011
+ * @version 1.4.4 06/04/2011
  */
 public class GoogleDocsUpload {
 
@@ -130,14 +130,14 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	protected static final String[] WELCOME_MESSAGE = { "",
-		"Google Docs Upload 1.4.3",
+		"Google Docs Upload 1.4.4",
 		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
 	
 	/** The message for displaying the usage parameters. */
 	protected static final String[] USAGE_MESSAGE = { "",
-		"Google Docs Upload 1.4.3",
+		"Google Docs Upload 1.4.4",
 		"",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
