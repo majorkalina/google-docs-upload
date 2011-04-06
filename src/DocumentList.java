@@ -24,6 +24,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import javax.activation.MimetypesFileTypeMap;
+
 import com.google.gdata.client.DocumentQuery;
 import com.google.gdata.client.GoogleService;
 import com.google.gdata.client.Query;
@@ -512,17 +514,8 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-
-		String mimeType = "";
-		try {
-			mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
-		} catch (IllegalArgumentException e) {
-		}
-
-		if (mimeType != "") {
-			newDocument.setFile(file, mimeType);
-		}
-
+		newDocument.setFile(file, new MimetypesFileTypeMap().getContentType(file));
+		
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
 
@@ -556,16 +549,7 @@ public class DocumentList {
 		File file = new File(filepath);
 
 		DocumentEntry newDocument = new DocumentEntry();
-
-		String mimeType = "";
-		try {
-			mimeType = DocumentListEntry.MediaType.fromFileName(file.getName()).getMimeType();
-		} catch (IllegalArgumentException e) {
-		}
-
-		if (mimeType != "") {
-			newDocument.setFile(file, mimeType);
-		}
+		newDocument.setFile(file, new MimetypesFileTypeMap().getContentType(file));
 
 		newDocument.setTitle(new PlainTextConstruct(title));
 		newDocument.setHidden(hidden);
