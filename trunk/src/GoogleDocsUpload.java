@@ -62,7 +62,7 @@ import com.google.gdata.util.ServiceForbiddenException;
  * 
  * @author Anton Beloglazov
  * @since 03/09/2009
- * @version 1.4.5 07/04/2011
+ * @version 1.4.6 12/04/2011
  */
 public class GoogleDocsUpload {
 
@@ -130,14 +130,14 @@ public class GoogleDocsUpload {
 	
 	/** Welcome message, introducing the program. */
 	protected static final String[] WELCOME_MESSAGE = { "",
-		"Google Docs Upload 1.4.5",
+		"Google Docs Upload 1.4.6",
 		"Using this tool, you can batch upload your documents to a Google Docs account preserving folder structure.",
 		"Type 'help' for a list of parameters.", "" 
 	};	
 	
 	/** The message for displaying the usage parameters. */
 	protected static final String[] USAGE_MESSAGE = { "",
-		"Google Docs Upload 1.4.5",
+		"Google Docs Upload 1.4.6",
 		"",
 		"Usage: java -jar google-docs-upload.jar",
 		"Usage: java -jar google-docs-upload.jar <path> --recursive",
@@ -435,10 +435,26 @@ public class GoogleDocsUpload {
 //			printLine(" - Skipped: the file size exceeds the limit");
 //			return null;
 //		}
+		
+		boolean convert = true;
+		if (isOptionWithoutConversion()) {
+			convert = false;
+		} else {
+			convert = isAllowedFormat(file);
+			if (!convert) {
+				printLine(" - Uploading without conversion");
+			}
+		}
+		String name = null;
+		if (convert) {
+			name = getFileName(file);
+		} else {
+			name = file.getName();
+		}
 
-		DocumentListEntry currentRemoteDoc = documentListFindByTitle(getFileName(file), remoteDocs);
+		DocumentListEntry currentRemoteDoc = documentListFindByTitle(name, remoteDocs);
 		boolean skip = false;
-		if (currentRemoteDoc != null && !isOptionAddAll() && currentRemoteDoc.getType().equals(getFileType(file))) {
+		if (currentRemoteDoc != null && !isOptionAddAll() && (!convert || currentRemoteDoc.getType().equals(getFileType(file)))) {
 			boolean replace = false;
 			
 			if (!isOptionSkipAll() && !isOptionReplaceAll()) {
@@ -483,23 +499,7 @@ public class GoogleDocsUpload {
 				cnt = 1;
 			}
 			for (int i = 0; i < cnt; i++) {				
-				try {
-					boolean convert = true;
-					if (isOptionWithoutConversion()) {
-						convert = false;
-					} else {
-						convert = isAllowedFormat(file);
-						if (!convert) {
-							printLine(" - Uploading without conversion");
-						}
-					}
-					String name = null;
-					if (convert) {
-						name = getFileName(file);
-					} else {
-						name = file.getName();
-					}
-					
+				try {					
 					if (remoteFolder == null) {
 						return getDocumentList().uploadFile(file.getAbsolutePath(), name, convert, isOptionHideAll());
 					} else {
