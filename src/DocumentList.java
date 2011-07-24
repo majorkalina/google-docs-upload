@@ -88,13 +88,19 @@ public class DocumentList {
 
 	private final String PARAMETER_SHOW_FOLDERS = "showfolders=true";
 
+	@SuppressWarnings("unused")
 	private String applicationName;
+	@SuppressWarnings("unused")
 	private String authProtocol;
+	@SuppressWarnings("unused")
 	private String authHost;
 	private String protocol;
 	private String host;
+	@SuppressWarnings("unused")
 	private String username;
+	@SuppressWarnings("unused")	
 	private String password;
+	@SuppressWarnings("unused")
 	private String authSubToken;
 
 	private final Map<String, String> DOWNLOAD_DOCUMENT_FORMATS;
